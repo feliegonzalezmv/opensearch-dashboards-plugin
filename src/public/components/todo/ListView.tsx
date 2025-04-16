@@ -10,19 +10,47 @@ import {
   EuiContextMenu,
   EuiIcon,
   EuiToolTip,
+  EuiButton,
 } from "@elastic/eui";
 import { Todo } from "./types";
 
 interface ListViewProps {
   todos: Todo[];
   onStatusChange: (todoId: string, newStatus: Todo["status"]) => void;
+  onEdit?: (todo: Todo) => void;
+  onDelete?: (todoId: string) => void;
+  searchQuery?: string;
 }
 
-const ListView: React.FC<ListViewProps> = ({ todos, onStatusChange }) => {
+const ListView: React.FC<ListViewProps> = ({
+  todos,
+  onStatusChange,
+  onEdit,
+  onDelete,
+  searchQuery = "",
+}) => {
   const [sorting, setSorting] = useState({
     field: "createdAt",
     direction: "desc",
   });
+
+  const [popoverStates, setPopoverStates] = useState<{
+    [key: string]: boolean;
+  }>({});
+
+  const togglePopover = (todoId: string) => {
+    setPopoverStates((prev) => ({
+      ...prev,
+      [todoId]: !prev[todoId],
+    }));
+  };
+
+  const closePopover = (todoId: string) => {
+    setPopoverStates((prev) => ({
+      ...prev,
+      [todoId]: false,
+    }));
+  };
 
   const columns = [
     {
@@ -50,10 +78,43 @@ const ListView: React.FC<ListViewProps> = ({ todos, onStatusChange }) => {
       field: "status",
       name: "Status",
       sortable: true,
-      render: (status: Todo["status"]) => (
-        <EuiBadge color={getStatusColor(status)}>
-          {getStatusLabel(status)}
-        </EuiBadge>
+      width: "150px",
+      render: (status: Todo["status"], todo: Todo) => (
+        <EuiPopover
+          button={
+            <EuiBadge
+              color={getStatusColor(status)}
+              onClick={() => togglePopover(todo.id)}
+              onClickAriaLabel="Change status"
+              style={{ cursor: "pointer" }}
+            >
+              {getStatusLabel(status)}
+            </EuiBadge>
+          }
+          isOpen={popoverStates[todo.id] || false}
+          closePopover={() => closePopover(todo.id)}
+          panelPaddingSize="s"
+        >
+          <div style={{ width: "150px" }}>
+            {(["planned", "in_progress", "completed", "error"] as const).map(
+              (newStatus) => (
+                <EuiButton
+                  key={newStatus}
+                  size="s"
+                  fullWidth
+                  color={getStatusColor(newStatus)}
+                  onClick={() => {
+                    onStatusChange(todo.id, newStatus);
+                    closePopover(todo.id);
+                  }}
+                  style={{ marginBottom: "4px" }}
+                >
+                  {getStatusLabel(newStatus)}
+                </EuiButton>
+              )
+            )}
+          </div>
+        </EuiPopover>
       ),
     },
     {
@@ -105,7 +166,7 @@ const ListView: React.FC<ListViewProps> = ({ todos, onStatusChange }) => {
           description: "Edit this task",
           icon: "pencil",
           type: "icon",
-          onClick: () => {},
+          onClick: (todo: Todo) => onEdit?.(todo),
         },
         {
           name: "Delete",
@@ -113,7 +174,7 @@ const ListView: React.FC<ListViewProps> = ({ todos, onStatusChange }) => {
           icon: "trash",
           type: "icon",
           color: "danger",
-          onClick: () => {},
+          onClick: (todo: Todo) => onDelete?.(todo.id),
         },
       ],
     },
@@ -127,6 +188,8 @@ const ListView: React.FC<ListViewProps> = ({ todos, onStatusChange }) => {
         return "primary";
       case "completed":
         return "success";
+      case "error":
+        return "danger";
     }
   };
 
@@ -149,6 +212,8 @@ const ListView: React.FC<ListViewProps> = ({ todos, onStatusChange }) => {
         return "In Progress";
       case "completed":
         return "Completed";
+      case "error":
+        return "Error";
     }
   };
 
@@ -162,7 +227,18 @@ const ListView: React.FC<ListViewProps> = ({ todos, onStatusChange }) => {
     }
   };
 
-  const sortedTodos = [...todos].sort((a: any, b: any) => {
+  // Filter todos based on search query
+  const filteredTodos = todos.filter((todo) => {
+    if (!searchQuery) return true;
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      todo.title.toLowerCase().includes(searchLower) ||
+      todo.description.toLowerCase().includes(searchLower) ||
+      todo.tags.some((tag) => tag.toLowerCase().includes(searchLower))
+    );
+  });
+
+  const sortedTodos = [...filteredTodos].sort((a: any, b: any) => {
     const multiplier = sorting.direction === "asc" ? 1 : -1;
     return a[sorting.field] > b[sorting.field] ? multiplier : -multiplier;
   });

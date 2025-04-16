@@ -2,15 +2,8 @@ import React from "react";
 import ReactDOM from "react-dom";
 import { AppMountParameters, CoreStart } from "../../../src/core/public";
 import { AppPluginStartDependencies } from "./types";
-import TodoContainer from "./components/todo/TodoContainer";
-import {
-  EuiPage,
-  EuiPageBody,
-  EuiPageContent,
-  EuiPageContentBody,
-  EuiPageHeader,
-  EuiTitle,
-} from "@elastic/eui";
+import TodoApp from "./components/todo/TodoApp";
+import { EuiPage, EuiPageBody, EuiPageHeader, EuiTitle } from "@elastic/eui";
 import "@elastic/eui/dist/eui_theme_light.css";
 
 interface CustomPluginAppDeps {
@@ -32,7 +25,7 @@ export const renderApp = (
             <h1>Task Manager</h1>
           </EuiTitle>
         </EuiPageHeader>
-        <TodoContainer />
+        <TodoApp />
       </EuiPageBody>
     </EuiPage>,
     element
