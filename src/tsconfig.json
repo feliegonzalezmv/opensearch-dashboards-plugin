@@ -2,7 +2,14 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./target",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "jsx": "react",
+    "esModuleInterop": true,
+    "lib": ["dom", "es2015", "es2016", "es2017", "es2018", "es2019", "es2020"],
+    "baseUrl": ".",
+    "paths": {
+      "core/public": ["../../src/core/public"]
+    }
   },
   "include": [
     "index.ts",
