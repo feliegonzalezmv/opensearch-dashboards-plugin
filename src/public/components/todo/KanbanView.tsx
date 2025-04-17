@@ -137,7 +137,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({
                     color="subdued"
                     style={{ cursor: "pointer" }}
                   >
-                    {todo.description.length > 100
+                    {todo.description?.length > 100
                       ? `${todo.description.substring(0, 100)}...`
                       : todo.description}
                   </EuiText>

@@ -67,8 +67,8 @@ const ListView: React.FC<ListViewProps> = ({
       render: (description: string) => (
         <EuiToolTip content={description}>
           <EuiText size="s" style={{ cursor: "pointer" }}>
-            {description.length > 50
-              ? `${description.substring(0, 50)}...`
+            {description?.length > 50
+              ? `${description?.substring(0, 50)}...`
               : description}
           </EuiText>
         </EuiToolTip>
@@ -124,7 +124,7 @@ const ListView: React.FC<ListViewProps> = ({
       width: "100px",
       render: (priority: Todo["priority"]) => (
         <EuiBadge color={getPriorityColor(priority)}>
-          {priority.charAt(0).toUpperCase() + priority.slice(1)}
+          {priority?.charAt(0).toUpperCase() + priority?.slice(1)}
         </EuiBadge>
       ),
     },
@@ -133,7 +133,7 @@ const ListView: React.FC<ListViewProps> = ({
       name: "Tags",
       render: (tags: string[]) => (
         <EuiFlexGroup gutterSize="xs" wrap>
-          {tags.map((tag) => (
+          {tags?.map((tag) => (
             <EuiFlexItem grow={false} key={tag}>
               <EuiBadge
                 color="hollow"

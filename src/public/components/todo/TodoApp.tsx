@@ -18,8 +18,9 @@ import ListView from "./ListView";
 import KanbanView from "./KanbanView";
 import TodoModal from "./TodoModal";
 import { Todo } from "./types";
+import * as todoApi from "./services/todoApi";
 
-// Mock data
+// Mock data for initial development
 const initialTodos: Todo[] = [
   {
     id: "1",
@@ -53,43 +54,49 @@ const initialTodos: Todo[] = [
   },
   {
     id: "4",
-    title: "SOX Audit Preparation",
+    title: "Vulnerability Assessment",
     description:
-      "Prepare documentation and evidence for upcoming SOX compliance audit.",
+      "Perform quarterly vulnerability assessment on all systems and address critical findings.",
     status: "planned",
     priority: "high",
-    tags: ["sox", "audit", "compliance"],
+    tags: ["security", "vulnerability", "assessment"],
     createdAt: new Date().toISOString(),
   },
   {
     id: "5",
-    title: "Firewall Rule Review",
+    title: "Security Awareness Training",
     description:
-      "Review and optimize firewall rules according to security best practices.",
-    status: "error",
+      "Conduct annual security awareness training for all employees and document completion.",
+    status: "planned",
     priority: "medium",
-    tags: ["security", "review", "maintenance"],
+    tags: ["training", "awareness", "security"],
     createdAt: new Date().toISOString(),
   },
 ];
 
 const TodoApp: React.FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [isKanban, setIsKanban] = useState(false);
+  const [viewType, setViewType] = useState<"list" | "kanban">("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | undefined>();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Initialize todos with a slight delay to ensure proper mounting
+  // Initialize todos with API call
   useEffect(() => {
     const loadTodos = async () => {
       setIsLoading(true);
+      setError(null);
       try {
-        // Simulate a small delay to ensure proper mounting
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        const fetchedTodos = await todoApi.getAllTodos();
+        setTodos(fetchedTodos);
+      } catch (err) {
+        console.error("Failed to load todos:", err);
+        setError("Failed to load todos. Please try again later.");
+        // Fallback to mock data for development
         setTodos(initialTodos);
       } finally {
         setIsLoading(false);
@@ -98,46 +105,101 @@ const TodoApp: React.FC = () => {
     loadTodos();
   }, []);
 
-  const handleStatusChange = (todoId: string, newStatus: Todo["status"]) => {
-    setTodos((prevTodos) =>
-      prevTodos.map((todo) =>
-        todo.id === todoId ? { ...todo, status: newStatus } : todo
-      )
-    );
-  };
+  // Handle search
+  useEffect(() => {
+    const searchTodos = async () => {
+      if (!searchQuery.trim()) {
+        // If search is empty, load all todos
+        try {
+          const fetchedTodos = await todoApi.getAllTodos();
+          setTodos(fetchedTodos);
+        } catch (err) {
+          console.error("Failed to load todos:", err);
+          setError("Failed to load todos. Please try again later.");
+        }
+        return;
+      }
 
-  const handleCreateTodo = (todoData: Omit<Todo, "id" | "createdAt">) => {
-    const newTodo: Todo = {
-      ...todoData,
-      id: Date.now().toString(), // Simple ID generation
-      createdAt: new Date().toISOString(),
+      setIsLoading(true);
+      setError(null);
+      try {
+        const searchResults = await todoApi.searchTodos(searchQuery);
+        setTodos(searchResults);
+      } catch (err) {
+        console.error("Failed to search todos:", err);
+        setError("Failed to search todos. Please try again later.");
+      } finally {
+        setIsLoading(false);
+      }
     };
-    setTodos((prevTodos) => [...prevTodos, newTodo]);
-    setToastMessage("Task created successfully!");
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
-    setIsModalVisible(false);
-  };
 
-  const handleEditTodo = (todoData: Omit<Todo, "id" | "createdAt">) => {
-    if (editingTodo) {
+    // Debounce search to avoid too many API calls
+    const timeoutId = setTimeout(searchTodos, 300);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  const handleStatusChange = async (
+    todoId: string,
+    newStatus: Todo["status"]
+  ) => {
+    try {
+      const updatedTodo = await todoApi.updateTodo(todoId, {
+        status: newStatus,
+      });
       setTodos((prevTodos) =>
-        prevTodos.map((todo) =>
-          todo.id === editingTodo.id ? { ...todo, ...todoData } : todo
-        )
+        prevTodos.map((todo) => (todo.id === todoId ? updatedTodo : todo))
       );
-      setToastMessage("Task updated successfully!");
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-      setIsModalVisible(false);
+    } catch (err) {
+      console.error("Failed to update todo status:", err);
+      setError("Failed to update todo status. Please try again later.");
     }
   };
 
-  const handleDeleteTodo = (todoId: string) => {
-    setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== todoId));
-    setToastMessage("Task deleted successfully!");
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+  const handleCreateTodo = async (todoData: Omit<Todo, "id" | "createdAt">) => {
+    try {
+      const newTodo = await todoApi.createTodo(todoData);
+      setTodos((prevTodos) => [...prevTodos, newTodo]);
+      setToastMessage("Task created successfully!");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      setIsModalVisible(false);
+    } catch (err) {
+      console.error("Failed to create todo:", err);
+      setError("Failed to create todo. Please try again later.");
+    }
+  };
+
+  const handleEditTodo = async (todoData: Omit<Todo, "id" | "createdAt">) => {
+    if (editingTodo) {
+      try {
+        const updatedTodo = await todoApi.updateTodo(editingTodo.id, todoData);
+        setTodos((prevTodos) =>
+          prevTodos.map((todo) =>
+            todo.id === editingTodo.id ? updatedTodo : todo
+          )
+        );
+        setToastMessage("Task updated successfully!");
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+        setIsModalVisible(false);
+      } catch (err) {
+        console.error("Failed to update todo:", err);
+        setError("Failed to update todo. Please try again later.");
+      }
+    }
+  };
+
+  const handleDeleteTodo = async (todoId: string) => {
+    try {
+      await todoApi.deleteTodo(todoId);
+      setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== todoId));
+      setToastMessage("Task deleted successfully!");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err) {
+      console.error("Failed to delete todo:", err);
+      setError("Failed to delete todo. Please try again later.");
+    }
   };
 
   const openCreateModal = () => {
@@ -155,108 +217,120 @@ const TodoApp: React.FC = () => {
     setEditingTodo(undefined);
   };
 
-  if (isLoading) {
-    return (
-      <EuiPage>
-        <EuiPageBody>
-          <EuiPageContent>
-            <EuiPageContentBody>
-              <EuiFlexGroup
-                alignItems="center"
-                justifyContent="center"
-                style={{ minHeight: "400px" }}
-              >
-                <EuiFlexItem grow={false}>
-                  <EuiLoadingSpinner size="xl" />
-                </EuiFlexItem>
-              </EuiFlexGroup>
-            </EuiPageContentBody>
-          </EuiPageContent>
-        </EuiPageBody>
-      </EuiPage>
-    );
-  }
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery("");
+  };
 
   return (
     <EuiPage>
       <EuiPageBody>
         <EuiPageContent>
           <EuiPageContentBody>
-            {showToast && (
-              <EuiToast
-                title="Success"
-                color="success"
-                text={toastMessage}
-                onClose={() => setShowToast(false)}
-              />
-            )}
-
-            <EuiFlexGroup alignItems="center" justifyContent="spaceBetween">
-              <EuiFlexItem>
+            <EuiFlexGroup justifyContent="spaceBetween" alignItems="center">
+              <EuiFlexItem grow={false}>
                 <EuiText>
-                  <h1>Task Management</h1>
+                  <h1>Security Compliance Tasks</h1>
                 </EuiText>
               </EuiFlexItem>
               <EuiFlexItem grow={false}>
-                <EuiFlexGroup gutterSize="s">
-                  <EuiFlexItem>
-                    <EuiFieldSearch
-                      placeholder="Search tasks..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      fullWidth
-                    />
-                  </EuiFlexItem>
-                  <EuiFlexItem grow={false}>
-                    <EuiButtonEmpty
-                      onClick={() => setIsKanban(!isKanban)}
-                      iconType={isKanban ? "list" : "grid"}
-                    >
-                      {isKanban ? "List View" : "Kanban View"}
-                    </EuiButtonEmpty>
-                  </EuiFlexItem>
-                  <EuiFlexItem grow={false}>
-                    <EuiButton
-                      fill
-                      iconType="plus"
-                      onClick={openCreateModal}
-                      data-test-subj="addNewTaskButton"
-                    >
-                      Add New Task
-                    </EuiButton>
-                  </EuiFlexItem>
-                </EuiFlexGroup>
+                <EuiButton
+                  color="primary"
+                  onClick={openCreateModal}
+                  iconType="plus"
+                >
+                  Add Task
+                </EuiButton>
               </EuiFlexItem>
             </EuiFlexGroup>
 
-            <EuiSpacer size="l" />
+            <EuiSpacer size="m" />
 
-            {isKanban ? (
-              <KanbanView
-                key={`kanban-${todos.length}`}
-                todos={todos}
-                onStatusChange={handleStatusChange}
-                onEdit={openEditModal}
-                onDelete={handleDeleteTodo}
-              />
+            <EuiFlexGroup justifyContent="spaceBetween" alignItems="center">
+              <EuiFlexItem grow={false}>
+                <EuiFlexGroup>
+                  <EuiFlexItem grow={false}>
+                    <EuiButtonEmpty
+                      color={viewType === "list" ? "primary" : "text"}
+                      onClick={() => setViewType("list")}
+                    >
+                      List View
+                    </EuiButtonEmpty>
+                  </EuiFlexItem>
+                  <EuiFlexItem grow={false}>
+                    <EuiButtonEmpty
+                      color={viewType === "kanban" ? "primary" : "text"}
+                      onClick={() => setViewType("kanban")}
+                    >
+                      Kanban View
+                    </EuiButtonEmpty>
+                  </EuiFlexItem>
+                </EuiFlexGroup>
+              </EuiFlexItem>
+              <EuiFlexItem grow={false}>
+                <EuiFieldSearch
+                  placeholder="Search tasks..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  isClearable
+                  onClear={clearSearch}
+                />
+              </EuiFlexItem>
+            </EuiFlexGroup>
+
+            <EuiSpacer size="m" />
+
+            {isLoading ? (
+              <EuiFlexGroup justifyContent="center">
+                <EuiFlexItem grow={false}>
+                  <EuiLoadingSpinner size="xl" />
+                </EuiFlexItem>
+              </EuiFlexGroup>
+            ) : error ? (
+              <EuiText color="danger">
+                <p>{error}</p>
+              </EuiText>
             ) : (
-              <ListView
-                key={`list-${todos.length}`}
-                todos={todos}
-                onStatusChange={handleStatusChange}
-                onEdit={openEditModal}
-                onDelete={handleDeleteTodo}
-                searchQuery={searchQuery}
-              />
+              <>
+                {viewType === "list" ? (
+                  <ListView
+                    todos={todos}
+                    onStatusChange={handleStatusChange}
+                    onEdit={openEditModal}
+                    onDelete={handleDeleteTodo}
+                  />
+                ) : (
+                  <KanbanView
+                    todos={todos}
+                    onStatusChange={handleStatusChange}
+                    onEdit={openEditModal}
+                    onDelete={handleDeleteTodo}
+                  />
+                )}
+              </>
             )}
 
             {isModalVisible && (
               <TodoModal
                 isVisible={isModalVisible}
                 onClose={closeModal}
-                todo={editingTodo}
                 onSubmit={editingTodo ? handleEditTodo : handleCreateTodo}
+                todo={editingTodo}
               />
+            )}
+
+            {showToast && (
+              <EuiToast
+                title="Success"
+                color="success"
+                iconType="check"
+                onClose={() => setShowToast(false)}
+              >
+                <p>{toastMessage}</p>
+              </EuiToast>
             )}
           </EuiPageContentBody>
         </EuiPageContent>
