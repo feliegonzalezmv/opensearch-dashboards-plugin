@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   EuiPage,
   EuiPageBody,
@@ -12,16 +12,17 @@ import {
   EuiText,
   EuiFieldSearch,
   EuiToast,
+  EuiLoadingSpinner,
 } from "@elastic/eui";
-import { v4 as uuidv4 } from "uuid";
 import ListView from "./ListView";
 import KanbanView from "./KanbanView";
 import TodoModal from "./TodoModal";
 import { Todo } from "./types";
 
+// Mock data
 const initialTodos: Todo[] = [
   {
-    id: uuidv4(),
+    id: "1",
     title: "PCI DSS Compliance Review",
     description:
       "Conduct quarterly review of PCI DSS compliance requirements and document findings.",
@@ -31,7 +32,7 @@ const initialTodos: Todo[] = [
     createdAt: new Date().toISOString(),
   },
   {
-    id: uuidv4(),
+    id: "2",
     title: "Security Patch Implementation",
     description:
       "Apply latest security patches to all systems and verify successful installation.",
@@ -41,7 +42,7 @@ const initialTodos: Todo[] = [
     createdAt: new Date().toISOString(),
   },
   {
-    id: uuidv4(),
+    id: "3",
     title: "ISO 27001 Documentation Update",
     description:
       "Update information security policies and procedures according to ISO 27001 standards.",
@@ -51,7 +52,7 @@ const initialTodos: Todo[] = [
     createdAt: new Date().toISOString(),
   },
   {
-    id: uuidv4(),
+    id: "4",
     title: "SOX Audit Preparation",
     description:
       "Prepare documentation and evidence for upcoming SOX compliance audit.",
@@ -61,7 +62,7 @@ const initialTodos: Todo[] = [
     createdAt: new Date().toISOString(),
   },
   {
-    id: uuidv4(),
+    id: "5",
     title: "Firewall Rule Review",
     description:
       "Review and optimize firewall rules according to security best practices.",
@@ -73,17 +74,33 @@ const initialTodos: Todo[] = [
 ];
 
 const TodoApp: React.FC = () => {
-  const [todos, setTodos] = useState<Todo[]>(initialTodos);
+  const [todos, setTodos] = useState<Todo[]>([]);
   const [isKanban, setIsKanban] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | undefined>();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Initialize todos with a slight delay to ensure proper mounting
+  useEffect(() => {
+    const loadTodos = async () => {
+      setIsLoading(true);
+      try {
+        // Simulate a small delay to ensure proper mounting
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        setTodos(initialTodos);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadTodos();
+  }, []);
 
   const handleStatusChange = (todoId: string, newStatus: Todo["status"]) => {
-    setTodos(
-      todos.map((todo) =>
+    setTodos((prevTodos) =>
+      prevTodos.map((todo) =>
         todo.id === todoId ? { ...todo, status: newStatus } : todo
       )
     );
@@ -92,30 +109,32 @@ const TodoApp: React.FC = () => {
   const handleCreateTodo = (todoData: Omit<Todo, "id" | "createdAt">) => {
     const newTodo: Todo = {
       ...todoData,
-      id: uuidv4(),
+      id: Date.now().toString(), // Simple ID generation
       createdAt: new Date().toISOString(),
     };
-    setTodos([...todos, newTodo]);
+    setTodos((prevTodos) => [...prevTodos, newTodo]);
     setToastMessage("Task created successfully!");
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
+    setIsModalVisible(false);
   };
 
   const handleEditTodo = (todoData: Omit<Todo, "id" | "createdAt">) => {
     if (editingTodo) {
-      setTodos(
-        todos.map((todo) =>
+      setTodos((prevTodos) =>
+        prevTodos.map((todo) =>
           todo.id === editingTodo.id ? { ...todo, ...todoData } : todo
         )
       );
       setToastMessage("Task updated successfully!");
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
+      setIsModalVisible(false);
     }
   };
 
   const handleDeleteTodo = (todoId: string) => {
-    setTodos(todos.filter((todo) => todo.id !== todoId));
+    setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== todoId));
     setToastMessage("Task deleted successfully!");
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
@@ -135,6 +154,28 @@ const TodoApp: React.FC = () => {
     setIsModalVisible(false);
     setEditingTodo(undefined);
   };
+
+  if (isLoading) {
+    return (
+      <EuiPage>
+        <EuiPageBody>
+          <EuiPageContent>
+            <EuiPageContentBody>
+              <EuiFlexGroup
+                alignItems="center"
+                justifyContent="center"
+                style={{ minHeight: "400px" }}
+              >
+                <EuiFlexItem grow={false}>
+                  <EuiLoadingSpinner size="xl" />
+                </EuiFlexItem>
+              </EuiFlexGroup>
+            </EuiPageContentBody>
+          </EuiPageContent>
+        </EuiPageBody>
+      </EuiPage>
+    );
+  }
 
   return (
     <EuiPage>
@@ -192,6 +233,7 @@ const TodoApp: React.FC = () => {
 
             {isKanban ? (
               <KanbanView
+                key={`kanban-${todos.length}`}
                 todos={todos}
                 onStatusChange={handleStatusChange}
                 onEdit={openEditModal}
@@ -199,6 +241,7 @@ const TodoApp: React.FC = () => {
               />
             ) : (
               <ListView
+                key={`list-${todos.length}`}
                 todos={todos}
                 onStatusChange={handleStatusChange}
                 onEdit={openEditModal}

@@ -13,7 +13,7 @@ services:
       # along with the memlock settings below, disables swapping
       - bootstrap.memory_lock=true
       # minimum and maximum Java heap size, recommend setting both to 50% of system RAM
-      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "OPENSEARCH_JAVA_OPTS=-Xms1024m -Xmx1024m"
       - "OPENSEARCH_INITIAL_ADMIN_PASSWORD=Wazuh-1234"
     ulimits:
       memlock:
@@ -28,11 +28,17 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl -v -k -u admin:Wazuh-1234 https://os1:9200 2>&1 | grep -q '200 OK'"
+          "curl -v -k -u admin:Wazuh-1234 https://os1:9200 2>&1 | grep -q '200 OK'",
         ]
       interval: 1s
       timeout: 5s
       retries: 300
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
 
   # OpenSearch Dashboards (development mode)
   osd:
@@ -45,9 +51,15 @@ services:
     ports:
       # map the Docker host port 5601 to the container port 5601
       - 5601:5601
-    entrypoint: [ "tail", "-f", "/dev/null" ]
+    entrypoint: ["tail", "-f", "/dev/null"]
     volumes:
       # Mount the src/ directory as a plugin
       - ./src:/home/node/kbn/plugins/custom_plugin
       # Mount the OpenSearch Dashboards configuration file to the container
       - ./config/opensearch_dashboards.yml:/home/node/kbn/config/opensearch_dashboards.yml
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
