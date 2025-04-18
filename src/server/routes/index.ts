@@ -88,10 +88,9 @@ export function defineRoutes(router: IRouter) {
     {
       path: "/api/custom_plugin/todos/{id}",
       validate: {
-        params: (schema) =>
-          schema.object({
-            id: schema.string(),
-          }),
+        params: schema.object({
+          id: schema.string(),
+        }),
       },
     },
     async (context, request, response) => {
@@ -169,18 +168,29 @@ export function defineRoutes(router: IRouter) {
     {
       path: "/api/custom_plugin/todos/{id}",
       validate: {
-        params: (schema) =>
-          schema.object({
-            id: schema.string(),
-          }),
-        body: (schema) =>
-          schema.object({
-            title: schema.maybe(schema.string()),
-            description: schema.maybe(schema.string()),
-            status: schema.maybe(schema.string()),
-            priority: schema.maybe(schema.string()),
-            tags: schema.maybe(schema.arrayOf(schema.string())),
-          }),
+        params: schema.object({
+          id: schema.string(),
+        }),
+        body: schema.object({
+          title: schema.maybe(schema.string()),
+          description: schema.maybe(schema.string()),
+          status: schema.maybe(
+            schema.oneOf([
+              schema.literal("planned"),
+              schema.literal("in_progress"),
+              schema.literal("completed"),
+              schema.literal("error"),
+            ])
+          ),
+          priority: schema.maybe(
+            schema.oneOf([
+              schema.literal("low"),
+              schema.literal("medium"),
+              schema.literal("high"),
+            ])
+          ),
+          tags: schema.maybe(schema.arrayOf(schema.string())),
+        }),
       },
     },
     async (context, request, response) => {
@@ -212,10 +222,9 @@ export function defineRoutes(router: IRouter) {
     {
       path: "/api/custom_plugin/todos/{id}",
       validate: {
-        params: (schema) =>
-          schema.object({
-            id: schema.string(),
-          }),
+        params: schema.object({
+          id: schema.string(),
+        }),
       },
     },
     async (context, request, response) => {
@@ -247,10 +256,9 @@ export function defineRoutes(router: IRouter) {
     {
       path: "/api/custom_plugin/todos/search",
       validate: {
-        query: (schema) =>
-          schema.object({
-            q: schema.string(),
-          }),
+        query: schema.object({
+          q: schema.string(),
+        }),
       },
     },
     async (context, request, response) => {

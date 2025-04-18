@@ -124,15 +124,40 @@ export class TodoService {
   async updateTodo(id: string, todo: Partial<Omit<Todo, "id" | "createdAt">>) {
     await this.initializeIndex();
 
-    await this.client.update({
-      index: TODO_INDEX,
-      id,
-      body: {
-        doc: todo,
-      },
-    });
+    try {
+      console.log("Updating todo with ID:", id);
+      console.log("Update data:", todo);
 
-    return this.getTodoById(id);
+      // First check if the todo exists
+      const exists = await this.client.exists({
+        index: TODO_INDEX,
+        id,
+      });
+
+      if (!exists.body) {
+        console.log("Todo not found with ID:", id);
+        throw { statusCode: 404, message: "Todo not found" };
+      }
+
+      // Perform the update
+      await this.client.update({
+        index: TODO_INDEX,
+        id,
+        body: {
+          doc: todo,
+        },
+      });
+
+      console.log("Todo updated successfully");
+
+      // Get and return the updated todo
+      const updatedTodo = await this.getTodoById(id);
+      console.log("Updated todo:", updatedTodo);
+      return updatedTodo;
+    } catch (error) {
+      console.error("Error in updateTodo:", error);
+      throw error;
+    }
   }
 
   // Delete a todo

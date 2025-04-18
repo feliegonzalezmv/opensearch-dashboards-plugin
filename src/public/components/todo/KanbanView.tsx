@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   EuiDragDropContext,
   EuiDraggable,
@@ -24,22 +24,165 @@ interface KanbanViewProps {
   onDelete?: (todoId: string) => void;
 }
 
+const TodoItem = React.memo(
+  ({
+    todo,
+    index,
+    onEdit,
+    onDelete,
+    dragHandleProps,
+  }: {
+    todo: Todo;
+    index: number;
+    onEdit?: (todo: Todo) => void;
+    onDelete?: (todoId: string) => void;
+    dragHandleProps: any;
+  }) => {
+    const getPriorityColor = (priority: Todo["priority"]) => {
+      switch (priority) {
+        case "low":
+          return "success";
+        case "medium":
+          return "warning";
+        case "high":
+          return "danger";
+      }
+    };
+
+    return (
+      <div style={{ marginBottom: "10px" }}>
+        <EuiCard
+          textAlign="left"
+          paddingSize="s"
+          title={
+            <EuiFlexGroup alignItems="center" gutterSize="s">
+              <EuiFlexItem grow={false}>
+                <div {...dragHandleProps}>
+                  <EuiIcon type="grab" size="s" />
+                </div>
+              </EuiFlexItem>
+              <EuiFlexItem grow={true}>
+                <EuiText size="s">
+                  <strong>{todo.title}</strong>
+                </EuiText>
+              </EuiFlexItem>
+              <EuiFlexItem grow={false}>
+                <EuiFlexGroup gutterSize="xs">
+                  <EuiFlexItem grow={false}>
+                    <EuiToolTip content="Edit">
+                      <EuiButtonIcon
+                        size="s"
+                        color="primary"
+                        iconType="pencil"
+                        aria-label="Edit"
+                        onClick={() => onEdit?.(todo)}
+                      />
+                    </EuiToolTip>
+                  </EuiFlexItem>
+                  <EuiFlexItem grow={false}>
+                    <EuiToolTip content="Delete">
+                      <EuiButtonIcon
+                        size="s"
+                        color="danger"
+                        iconType="trash"
+                        aria-label="Delete"
+                        onClick={() => onDelete?.(todo.id)}
+                      />
+                    </EuiToolTip>
+                  </EuiFlexItem>
+                </EuiFlexGroup>
+              </EuiFlexItem>
+            </EuiFlexGroup>
+          }
+        >
+          <EuiFlexGroup direction="column" gutterSize="xs">
+            <EuiFlexItem grow={false}>
+              <EuiToolTip content={todo.description}>
+                <EuiText
+                  size="xs"
+                  color="subdued"
+                  style={{ cursor: "pointer" }}
+                >
+                  {todo.description?.length > 100
+                    ? `${todo.description.substring(0, 100)}...`
+                    : todo.description}
+                </EuiText>
+              </EuiToolTip>
+            </EuiFlexItem>
+            <EuiFlexItem grow={false}>
+              <EuiHorizontalRule margin="xs" />
+            </EuiFlexItem>
+            <EuiFlexItem grow={false}>
+              <EuiFlexGroup gutterSize="xs" alignItems="center">
+                <EuiFlexItem grow={false}>
+                  <EuiBadge color={getPriorityColor(todo.priority)}>
+                    {todo.priority.charAt(0).toUpperCase() +
+                      todo.priority.slice(1)}
+                  </EuiBadge>
+                </EuiFlexItem>
+                {todo.tags.map((tag) => (
+                  <EuiFlexItem grow={false} key={tag}>
+                    <EuiBadge
+                      color="hollow"
+                      style={{
+                        backgroundColor: "#f0f0f0",
+                        borderRadius: "16px",
+                        padding: "2px 6px",
+                      }}
+                    >
+                      {tag}
+                    </EuiBadge>
+                  </EuiFlexItem>
+                ))}
+              </EuiFlexGroup>
+            </EuiFlexItem>
+          </EuiFlexGroup>
+        </EuiCard>
+      </div>
+    );
+  }
+);
+
 const KanbanView: React.FC<KanbanViewProps> = ({
   todos,
   onStatusChange,
   onEdit,
   onDelete,
 }) => {
-  const onDragEnd = ({ source, destination }: any) => {
-    if (!destination) return;
-    const newStatus = destination.droppableId as Todo["status"];
-    onStatusChange(source.draggableId, newStatus);
-  };
+  const onDragEnd = useCallback(
+    ({ source, destination }: any) => {
+      if (!destination) return;
 
-  const getListByStatus = (status: Todo["status"]) =>
-    todos.filter((todo) => todo.status === status);
+      // Log the drag event details for debugging
+      console.log("Drag event:", { source, destination });
 
-  const getStatusTitle = (status: Todo["status"]) => {
+      // Get the todo from the source list using the index
+      const sourceList = getListByStatus(source.droppableId as Todo["status"]);
+      const todo = sourceList[source.index];
+
+      if (!todo) {
+        console.error(
+          "Todo not found at index:",
+          source.index,
+          "in list:",
+          sourceList
+        );
+        return;
+      }
+
+      const newStatus = destination.droppableId as Todo["status"];
+      console.log("Updating todo status:", { todoId: todo.id, newStatus });
+      onStatusChange(todo.id, newStatus);
+    },
+    [onStatusChange]
+  );
+
+  const getListByStatus = useCallback(
+    (status: Todo["status"]) => todos.filter((todo) => todo.status === status),
+    [todos]
+  );
+
+  const getStatusTitle = useCallback((status: Todo["status"]) => {
     switch (status) {
       case "planned":
         return "Planned";
@@ -50,9 +193,9 @@ const KanbanView: React.FC<KanbanViewProps> = ({
       case "error":
         return "Error";
     }
-  };
+  }, []);
 
-  const getStatusColor = (status: Todo["status"]) => {
+  const getStatusColor = useCallback((status: Todo["status"]) => {
     switch (status) {
       case "planned":
         return "default";
@@ -63,125 +206,36 @@ const KanbanView: React.FC<KanbanViewProps> = ({
       case "error":
         return "danger";
     }
-  };
+  }, []);
 
-  const getPriorityColor = (priority: Todo["priority"]) => {
-    switch (priority) {
-      case "low":
-        return "success";
-      case "medium":
-        return "warning";
-      case "high":
-        return "danger";
-    }
-  };
-
-  const renderTodoItem = (todo: Todo) => (
-    <EuiDraggable
-      key={todo.id}
-      index={todos.findIndex((t) => t.id === todo.id)}
-      draggableId={todo.id}
-      customDragHandle
-    >
-      {(provided) => (
-        <div style={{ marginBottom: "10px" }}>
-          <EuiCard
-            textAlign="left"
-            paddingSize="s"
-            title={
-              <EuiFlexGroup alignItems="center" gutterSize="s">
-                <EuiFlexItem grow={false}>
-                  <div {...provided.dragHandleProps}>
-                    <EuiIcon type="grab" size="s" />
-                  </div>
-                </EuiFlexItem>
-                <EuiFlexItem grow={true}>
-                  <EuiText size="s">
-                    <strong>{todo.title}</strong>
-                  </EuiText>
-                </EuiFlexItem>
-                <EuiFlexItem grow={false}>
-                  <EuiFlexGroup gutterSize="xs">
-                    <EuiFlexItem grow={false}>
-                      <EuiToolTip content="Edit">
-                        <EuiButtonIcon
-                          size="s"
-                          color="primary"
-                          iconType="pencil"
-                          aria-label="Edit"
-                          onClick={() => onEdit?.(todo)}
-                        />
-                      </EuiToolTip>
-                    </EuiFlexItem>
-                    <EuiFlexItem grow={false}>
-                      <EuiToolTip content="Delete">
-                        <EuiButtonIcon
-                          size="s"
-                          color="danger"
-                          iconType="trash"
-                          aria-label="Delete"
-                          onClick={() => onDelete?.(todo.id)}
-                        />
-                      </EuiToolTip>
-                    </EuiFlexItem>
-                  </EuiFlexGroup>
-                </EuiFlexItem>
-              </EuiFlexGroup>
-            }
-          >
-            <EuiFlexGroup direction="column" gutterSize="xs">
-              <EuiFlexItem grow={false}>
-                <EuiToolTip content={todo.description}>
-                  <EuiText
-                    size="xs"
-                    color="subdued"
-                    style={{ cursor: "pointer" }}
-                  >
-                    {todo.description?.length > 100
-                      ? `${todo.description.substring(0, 100)}...`
-                      : todo.description}
-                  </EuiText>
-                </EuiToolTip>
-              </EuiFlexItem>
-              <EuiFlexItem grow={false}>
-                <EuiHorizontalRule margin="xs" />
-              </EuiFlexItem>
-              <EuiFlexItem grow={false}>
-                <EuiFlexGroup gutterSize="xs" alignItems="center">
-                  <EuiFlexItem grow={false}>
-                    <EuiBadge color={getPriorityColor(todo.priority)}>
-                      {todo.priority.charAt(0).toUpperCase() +
-                        todo.priority.slice(1)}
-                    </EuiBadge>
-                  </EuiFlexItem>
-                  {todo.tags.map((tag) => (
-                    <EuiFlexItem grow={false} key={tag}>
-                      <EuiBadge
-                        color="hollow"
-                        style={{
-                          backgroundColor: "#f0f0f0",
-                          borderRadius: "16px",
-                          padding: "2px 6px",
-                        }}
-                      >
-                        {tag}
-                      </EuiBadge>
-                    </EuiFlexItem>
-                  ))}
-                </EuiFlexGroup>
-              </EuiFlexItem>
-            </EuiFlexGroup>
-          </EuiCard>
-        </div>
-      )}
-    </EuiDraggable>
+  const renderTodoItem = useCallback(
+    (todo: Todo, index: number) => (
+      <EuiDraggable
+        key={todo.id}
+        index={index}
+        draggableId={todo.id}
+        customDragHandle
+      >
+        {(provided) => (
+          <TodoItem
+            todo={todo}
+            index={index}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            dragHandleProps={provided.dragHandleProps}
+          />
+        )}
+      </EuiDraggable>
+    ),
+    [onEdit, onDelete]
   );
 
-  return (
-    <EuiDragDropContext onDragEnd={onDragEnd}>
-      <EuiFlexGroup gutterSize="s">
-        {(["planned", "in_progress", "completed", "error"] as const).map(
-          (status) => (
+  const statusColumns = useMemo(
+    () =>
+      (["planned", "in_progress", "completed", "error"] as const).map(
+        (status) => {
+          const statusTodos = getListByStatus(status);
+          return (
             <EuiFlexItem key={status}>
               <EuiPanel paddingSize="m">
                 <EuiFlexGroup alignItems="center" gutterSize="s">
@@ -195,9 +249,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({
                     </EuiText>
                   </EuiFlexItem>
                   <EuiFlexItem grow={false}>
-                    <EuiBadge color="default">
-                      {getListByStatus(status).length}
-                    </EuiBadge>
+                    <EuiBadge color="default">{statusTodos.length}</EuiBadge>
                   </EuiFlexItem>
                 </EuiFlexGroup>
                 <EuiSpacer size="s" />
@@ -211,15 +263,23 @@ const KanbanView: React.FC<KanbanViewProps> = ({
                     borderRadius: "4px",
                   }}
                 >
-                  {getListByStatus(status).map((todo) => renderTodoItem(todo))}
+                  {statusTodos.map((todo, index) =>
+                    renderTodoItem(todo, index)
+                  )}
                 </EuiDroppable>
               </EuiPanel>
             </EuiFlexItem>
-          )
-        )}
-      </EuiFlexGroup>
+          );
+        }
+      ),
+    [getListByStatus, getStatusColor, getStatusTitle, renderTodoItem]
+  );
+
+  return (
+    <EuiDragDropContext onDragEnd={onDragEnd}>
+      <EuiFlexGroup gutterSize="s">{statusColumns}</EuiFlexGroup>
     </EuiDragDropContext>
   );
 };
 
-export default KanbanView;
+export default React.memo(KanbanView);
