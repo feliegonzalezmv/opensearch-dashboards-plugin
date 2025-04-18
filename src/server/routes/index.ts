@@ -1,4 +1,5 @@
 import { IRouter } from "@opensearch-dashboards/core/server";
+import { schema } from "@osd/config-schema";
 import { TodoService } from "../services/todoService";
 
 // Define the schema types manually
@@ -26,6 +27,36 @@ export function defineRoutes(router: IRouter) {
     }
   );
 
+  // Debug endpoint to check index contents
+  router.get(
+    {
+      path: "/api/custom_plugin/debug/index",
+      validate: false,
+    },
+    async (context, request, response) => {
+      try {
+        const client = context.core.opensearch.client.asCurrentUser;
+        const result = await client.search({
+          index: "todos",
+          body: {
+            query: {
+              match_all: {},
+            },
+          },
+        });
+        return response.ok({ body: result.body });
+      } catch (error) {
+        console.error("Error checking index:", error);
+        return response.internalError({
+          body: {
+            message: "Failed to check index",
+            error: error.message,
+          },
+        });
+      }
+    }
+  );
+
   // Get all todos
   router.get(
     {
@@ -33,11 +64,22 @@ export function defineRoutes(router: IRouter) {
       validate: false,
     },
     async (context, request, response) => {
-      const todoService = new TodoService(
-        context.core.opensearch.client.asCurrentUser
-      );
-      const todos = await todoService.getAllTodos();
-      return response.ok({ body: todos });
+      try {
+        const todoService = new TodoService(
+          context.core.opensearch.client.asCurrentUser
+        );
+        const todos = await todoService.getAllTodos();
+        console.log("Retrieved todos:", todos);
+        return response.ok({ body: todos });
+      } catch (error) {
+        console.error("Error fetching todos:", error);
+        return response.internalError({
+          body: {
+            message: "Failed to fetch todos",
+            error: error.message,
+          },
+        });
+      }
     }
   );
 
@@ -72,46 +114,50 @@ export function defineRoutes(router: IRouter) {
     {
       path: "/api/custom_plugin/todos",
       validate: {
-        body: (schema) => {
-          console.log("Schema object:", schema);
-          return {
-            title: { type: "string" },
-            description: { type: "string" },
-            status: {
-              type: "string",
-              enum: ["planned", "in_progress", "completed", "error"],
-            },
-            priority: {
-              type: "string",
-              enum: ["low", "medium", "high"],
-            },
-            tags: {
-              type: "array",
-              items: { type: "string" },
-            },
-          };
-        },
+        body: schema.object({
+          title: schema.string(),
+          description: schema.string(),
+          status: schema.oneOf([
+            schema.literal("planned"),
+            schema.literal("in_progress"),
+            schema.literal("completed"),
+            schema.literal("error"),
+          ]),
+          priority: schema.oneOf([
+            schema.literal("low"),
+            schema.literal("medium"),
+            schema.literal("high"),
+          ]),
+          tags: schema.arrayOf(schema.string()),
+        }),
       },
       options: {
-        xsrfRequired: true,
+        body: {
+          maxBytes: 1024,
+          accepts: ["application/json"],
+        },
       },
     },
     async (context, request, response) => {
       try {
+        console.log("Received request body:", request.body);
+
         const todoService = new TodoService(
           context.core.opensearch.client.asCurrentUser
         );
-        const todo = await todoService.createTodo({
-          ...request.body,
-          createdAt: new Date().toISOString(),
+
+        const todo = await todoService.createTodo(request.body);
+        console.log("Created todo:", todo);
+
+        return response.ok({
+          body: todo,
         });
-        return response.ok({ body: todo });
       } catch (error) {
         console.error("Error creating todo:", error);
-        return response.internalError({
+        return response.badRequest({
           body: {
-            message: "Failed to create todo",
-            error: error.message,
+            message:
+              error instanceof Error ? error.message : "Failed to create todo",
           },
         });
       }

@@ -1,4 +1,4 @@
-import { OpenSearchClient } from "@opensearch-dashboards/core/server";
+import { OpenSearchClient } from "../types/core";
 
 // Define the index name for todos
 const TODO_INDEX = "todos";
@@ -84,18 +84,40 @@ export class TodoService {
   }
 
   // Create a new todo
-  async createTodo(todo: Omit<Todo, "id">) {
-    await this.initializeIndex();
+  async createTodo(todoData: Omit<Todo, "id" | "createdAt">): Promise<Todo> {
+    try {
+      console.log("Creating todo with data:", todoData);
 
-    const response = await this.client.index({
-      index: TODO_INDEX,
-      body: todo,
-    });
+      const document = {
+        title: todoData.title,
+        description: todoData.description,
+        status: todoData.status,
+        priority: todoData.priority,
+        tags: todoData.tags,
+        createdAt: new Date().toISOString(),
+      };
 
-    return {
-      id: response.body._id,
-      ...todo,
-    };
+      console.log("Document to index:", document);
+
+      const response = await this.client.index({
+        index: TODO_INDEX,
+        body: document,
+      });
+
+      console.log("OpenSearch response:", response);
+
+      const createdTodo: Todo = {
+        id: response.body._id,
+        ...document,
+      };
+
+      console.log("Created todo object:", createdTodo);
+
+      return createdTodo;
+    } catch (error) {
+      console.error("Error in createTodo:", error);
+      throw error;
+    }
   }
 
   // Update a todo
