@@ -153,10 +153,6 @@ const KanbanView: React.FC<KanbanViewProps> = ({
     ({ source, destination }: any) => {
       if (!destination) return;
 
-      // Log the drag event details for debugging
-      console.log("Drag event:", { source, destination });
-
-      // Get the todo from the source list using the index
       const sourceList = getListByStatus(source.droppableId as Todo["status"]);
       const todo = sourceList[source.index];
 
@@ -171,7 +167,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({
       }
 
       const newStatus = destination.droppableId as Todo["status"];
-      console.log("Updating todo status:", { todoId: todo.id, newStatus });
+
       onStatusChange(todo.id, newStatus);
     },
     [onStatusChange]

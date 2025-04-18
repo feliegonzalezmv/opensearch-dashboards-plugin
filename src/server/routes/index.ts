@@ -69,10 +69,9 @@ export function defineRoutes(router: IRouter) {
           context.core.opensearch.client.asCurrentUser
         );
         const todos = await todoService.getAllTodos();
-        console.log("Retrieved todos:", todos);
+
         return response.ok({ body: todos });
       } catch (error) {
-        console.error("Error fetching todos:", error);
         return response.internalError({
           body: {
             message: "Failed to fetch todos",
@@ -139,14 +138,11 @@ export function defineRoutes(router: IRouter) {
     },
     async (context, request, response) => {
       try {
-        console.log("Received request body:", request.body);
-
         const todoService = new TodoService(
           context.core.opensearch.client.asCurrentUser
         );
 
         const todo = await todoService.createTodo(request.body);
-        console.log("Created todo:", todo);
 
         return response.ok({
           body: todo,

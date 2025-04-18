@@ -85,7 +85,6 @@ const TodoApp: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize todos with API call
   useEffect(() => {
     const loadTodos = async () => {
       setIsLoading(true);
@@ -96,7 +95,7 @@ const TodoApp: React.FC = () => {
       } catch (err) {
         console.error("Failed to load todos:", err);
         setError("Failed to load todos. Please try again later.");
-        // Fallback to mock data for development
+
         setTodos(initialTodos);
       } finally {
         setIsLoading(false);
@@ -105,11 +104,9 @@ const TodoApp: React.FC = () => {
     loadTodos();
   }, []);
 
-  // Handle search
   useEffect(() => {
     const searchTodos = async () => {
       if (!searchQuery.trim()) {
-        // If search is empty, load all todos
         try {
           const fetchedTodos = await todoApi.getAllTodos();
           setTodos(fetchedTodos);
@@ -133,7 +130,6 @@ const TodoApp: React.FC = () => {
       }
     };
 
-    // Debounce search to avoid too many API calls
     const timeoutId = setTimeout(searchTodos, 300);
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);

@@ -86,8 +86,6 @@ export class TodoService {
   // Create a new todo
   async createTodo(todoData: Omit<Todo, "id" | "createdAt">): Promise<Todo> {
     try {
-      console.log("Creating todo with data:", todoData);
-
       const document = {
         title: todoData.title,
         description: todoData.description,
@@ -97,25 +95,18 @@ export class TodoService {
         createdAt: new Date().toISOString(),
       };
 
-      console.log("Document to index:", document);
-
       const response = await this.client.index({
         index: TODO_INDEX,
         body: document,
       });
-
-      console.log("OpenSearch response:", response);
 
       const createdTodo: Todo = {
         id: response.body._id,
         ...document,
       };
 
-      console.log("Created todo object:", createdTodo);
-
       return createdTodo;
     } catch (error) {
-      console.error("Error in createTodo:", error);
       throw error;
     }
   }
@@ -125,21 +116,15 @@ export class TodoService {
     await this.initializeIndex();
 
     try {
-      console.log("Updating todo with ID:", id);
-      console.log("Update data:", todo);
-
-      // First check if the todo exists
       const exists = await this.client.exists({
         index: TODO_INDEX,
         id,
       });
 
       if (!exists.body) {
-        console.log("Todo not found with ID:", id);
         throw { statusCode: 404, message: "Todo not found" };
       }
 
-      // Perform the update
       await this.client.update({
         index: TODO_INDEX,
         id,
@@ -148,11 +133,8 @@ export class TodoService {
         },
       });
 
-      console.log("Todo updated successfully");
-
-      // Get and return the updated todo
       const updatedTodo = await this.getTodoById(id);
-      console.log("Updated todo:", updatedTodo);
+
       return updatedTodo;
     } catch (error) {
       console.error("Error in updateTodo:", error);
