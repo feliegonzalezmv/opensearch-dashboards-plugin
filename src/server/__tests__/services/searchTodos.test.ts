@@ -1,7 +1,7 @@
 import { TodoService } from "../../services/todoService";
 
-describe("TodoService - Search", () => {
-  // Mock de OpenSearch Client
+describe("TodoService - Search Functionality", () => {
+  // Mock OpenSearch Client
   const mockClient = {
     indices: {
       exists: jest.fn().mockResolvedValue({ body: false }),
@@ -12,7 +12,6 @@ describe("TodoService - Search", () => {
     index: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
-    exists: jest.fn().mockResolvedValue({ body: true }),
   };
 
   let todoService: TodoService;
@@ -22,54 +21,148 @@ describe("TodoService - Search", () => {
     todoService = new TodoService(mockClient);
   });
 
-  describe("searchTodos", () => {
-    it("should search todos by query", async () => {
-      // Configurar mock de resultados
+  describe("Search todos by text", () => {
+    it("should search todos by title with higher relevance", async () => {
+      // Mock response with search results prioritizing title matches
+      const mockTodos = [
+        {
+          _id: "todo-1",
+          _source: {
+            title: "Project Alpha Report",
+            description: "Regular description",
+            status: "to_do",
+            priority: "medium",
+            tags: ["report"],
+            createdAt: new Date().toISOString(),
+          },
+        },
+        {
+          _id: "todo-2",
+          _source: {
+            title: "Regular title",
+            description: "This contains Project Alpha details",
+            status: "to_do",
+            priority: "medium",
+            tags: ["project-alpha"],
+            createdAt: new Date().toISOString(),
+          },
+        },
+      ];
+
       mockClient.search.mockResolvedValue({
         body: {
           hits: {
-            hits: [
-              {
-                _id: "1",
-                _source: {
-                  title: "Security Todo",
-                  description: "Implement security controls",
-                  status: "in_progress",
-                  priority: "high",
-                  tags: ["security", "compliance"],
-                  createdAt: "2023-01-01",
-                },
-              },
-              {
-                _id: "2",
-                _source: {
-                  title: "Database Access",
-                  description: "Review security permissions",
-                  status: "planned",
-                  priority: "medium",
-                  tags: ["database", "security"],
-                  createdAt: "2023-01-02",
-                },
-              },
-            ],
+            hits: mockTodos,
           },
         },
       });
 
-      // Realizar la búsqueda
-      const result = await todoService.searchTodos("security");
+      const result = await todoService.searchTodos("Project Alpha");
 
-      // Verificar que se llamó al método search
-      expect(mockClient.search).toHaveBeenCalled();
+      // Verify search was called with the right query
+      expect(mockClient.search).toHaveBeenCalledWith({
+        index: "todos",
+        body: {
+          query: {
+            multi_match: {
+              query: "Project Alpha",
+              fields: ["title^2", "description", "tags"],
+            },
+          },
+          sort: [{ createdAt: { order: "desc" } }],
+        },
+      });
 
-      // Verificar que se obtuvieron resultados
-      expect(result).toHaveLength(2);
-      expect(result[0]).toHaveProperty("id", "1");
-      expect(result[1]).toHaveProperty("id", "2");
+      expect(result.length).toBe(2);
+      // First result should be the title match due to boosting
+      expect(result[0].title).toBe("Project Alpha Report");
     });
 
-    it("should return empty array when no results", async () => {
-      // Configurar el mock para que devuelva sin resultados
+    it("should search todos by description", async () => {
+      const mockTodos = [
+        {
+          _id: "todo-1",
+          _source: {
+            title: "Regular title",
+            description: "Implement security features",
+            status: "to_do",
+            priority: "high",
+            tags: ["feature"],
+            createdAt: new Date().toISOString(),
+          },
+        },
+      ];
+
+      mockClient.search.mockResolvedValue({
+        body: {
+          hits: {
+            hits: mockTodos,
+          },
+        },
+      });
+
+      const result = await todoService.searchTodos("security");
+
+      expect(mockClient.search).toHaveBeenCalledWith({
+        index: "todos",
+        body: {
+          query: {
+            multi_match: {
+              query: "security",
+              fields: ["title^2", "description", "tags"],
+            },
+          },
+          sort: [{ createdAt: { order: "desc" } }],
+        },
+      });
+
+      expect(result.length).toBe(1);
+      expect(result[0].description).toContain("security");
+    });
+
+    it("should search todos by tags", async () => {
+      const mockTodos = [
+        {
+          _id: "todo-1",
+          _source: {
+            title: "Regular title",
+            description: "Regular description",
+            status: "to_do",
+            priority: "medium",
+            tags: ["urgent-fix"],
+            createdAt: new Date().toISOString(),
+          },
+        },
+      ];
+
+      mockClient.search.mockResolvedValue({
+        body: {
+          hits: {
+            hits: mockTodos,
+          },
+        },
+      });
+
+      const result = await todoService.searchTodos("urgent");
+
+      expect(mockClient.search).toHaveBeenCalledWith({
+        index: "todos",
+        body: {
+          query: {
+            multi_match: {
+              query: "urgent",
+              fields: ["title^2", "description", "tags"],
+            },
+          },
+          sort: [{ createdAt: { order: "desc" } }],
+        },
+      });
+
+      expect(result.length).toBe(1);
+      expect(result[0].tags).toContain("urgent-fix");
+    });
+
+    it("should return empty array when no matches found", async () => {
       mockClient.search.mockResolvedValue({
         body: {
           hits: {
@@ -78,14 +171,22 @@ describe("TodoService - Search", () => {
         },
       });
 
-      // Realizar la búsqueda
       const result = await todoService.searchTodos("nonexistent");
 
-      // Verificar la llamada al método search
-      expect(mockClient.search).toHaveBeenCalled();
+      expect(mockClient.search).toHaveBeenCalledWith({
+        index: "todos",
+        body: {
+          query: {
+            multi_match: {
+              query: "nonexistent",
+              fields: ["title^2", "description", "tags"],
+            },
+          },
+          sort: [{ createdAt: { order: "desc" } }],
+        },
+      });
 
-      // Verificar que devuelve un array vacío
-      expect(result).toEqual([]);
+      expect(result.length).toBe(0);
     });
   });
 });

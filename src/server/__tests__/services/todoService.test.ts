@@ -1,6 +1,6 @@
 import { TodoService } from "../../services/todoService";
 
-// Mock de OpenSearch Client
+// Mock OpenSearch Client
 const mockClient = {
   indices: {
     exists: jest.fn().mockResolvedValue({ body: false }),
@@ -14,7 +14,7 @@ const mockClient = {
   exists: jest.fn(),
 };
 
-// Configuración global para todos los tests
+// Global test setup
 beforeEach(() => {
   jest.clearAllMocks();
 });
@@ -28,7 +28,6 @@ describe("TodoService", () => {
 
   describe("getAllTodos", () => {
     it("should return all todos", async () => {
-      // Configurar el mock
       mockClient.search.mockResolvedValue({
         body: {
           hits: {
@@ -49,13 +48,9 @@ describe("TodoService", () => {
         },
       });
 
-      // Llamar al método
       const result = await todoService.getAllTodos();
 
-      // Verificar que se llamó a search
       expect(mockClient.search).toHaveBeenCalled();
-
-      // Verificar el resultado básico
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe("1");
     });
@@ -63,14 +58,12 @@ describe("TodoService", () => {
 
   describe("createTodo", () => {
     it("should create a new todo", async () => {
-      // Configurar el mock
       mockClient.index.mockResolvedValue({
         body: {
           _id: "1",
         },
       });
 
-      // Datos del nuevo todo
       const todoData = {
         title: "New Todo",
         description: "New Description",
@@ -79,13 +72,9 @@ describe("TodoService", () => {
         tags: ["new"],
       };
 
-      // Llamar al método
       const result = await todoService.createTodo(todoData);
 
-      // Verificar que se llamó a index
       expect(mockClient.index).toHaveBeenCalled();
-
-      // Verificar que hay un id en el resultado
       expect(result).toHaveProperty("id");
       expect(result.title).toBe("New Todo");
     });
