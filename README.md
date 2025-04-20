@@ -6,12 +6,12 @@ The developer environment is defined through a `docker-compose.yml` file.
 
 To deploy it, you need one of the following:
 
--   [Docker Desktop][docker-desktop]
--   [Docker Engine][docker-engine]
--   [Compose standalone][docker-compose]
+- [Docker Desktop][docker-desktop]
+- [Docker Engine][docker-engine]
+- [Compose standalone][docker-compose]
 
 > The recent versions of `docker` CLI has a built-in `compose` command that is similar
-> to the `docker-compose` standalone. If your `docker` CLI thas the builtin-in `compose`
+> to the `docker-compose` standalone. If your `docker` CLI has the built-in `compose`
 > command, you don't need to install it. See the help of your `docker` CLI using:
 >
 > ```shell
@@ -29,24 +29,89 @@ On Linux, you can increase the limits by running the following command as **root
 sysctl -w vm.max_map_count=262144
 ```
 
+On Windows with WSL2, you need to create or edit the `.wslconfig` file in your user's home directory and add:
+
+```
+[wsl2]
+kernelCommandLine = "sysctl.vm.max_map_count=262144"
+```
+
+Then restart WSL with `wsl --shutdown` in PowerShell or Command Prompt.
+
 Additional information [here][vm-max-count].
+
+## Project Overview
+
+### Todo Application for OpenSearch Dashboards
+
+This is a plugin for OpenSearch Dashboards that provides a task management application for security compliance professionals.
+
+### Features
+
+- Create, read, update, and delete tasks
+- Search tasks by title, description, or tags
+- View tasks in list or kanban format
+- Track task status (planned, in progress, completed, error)
+- Assign priority levels to tasks
+- Tag tasks for better organization
+- Analytics dashboard with task statistics
+
+## Architecture
+
+The application is built as a plugin for OpenSearch Dashboards with the following components:
+
+### Frontend
+
+- React-based UI using OpenSearch UI components (@elastic/eui)
+- List and Kanban views for task visualization
+- Analytics dashboard with charts for task status and priority
+- Search functionality with real-time filtering
+- Task creation and editing forms with validation
+
+### Backend
+
+- REST API endpoints for CRUD operations
+- OpenSearch integration for data persistence
+- Search functionality using OpenSearch's search capabilities
+- Custom schema validation using @osd/config-schema
+- Secure integration with OpenSearch Dashboards authentication
+
+### Data Flow
+
+1. User interactions in the UI trigger API calls via the `todoApi` service
+2. API requests are handled by routes defined in `src/server/routes/index.ts`
+3. Route handlers delegate to service methods in `src/server/services/todoService.ts`
+4. The TodoService interacts with OpenSearch for data storage and retrieval
+5. Response data is returned to the UI and rendered in the appropriate components
+
+### Data Model
+
+Tasks have the following properties:
+
+- `id` - Unique identifier
+- `title` - Task title
+- `description` - Task description
+- `status` - Task status (planned, in_progress, completed, error)
+- `priority` - Task priority (low, medium, high)
+- `tags` - Array of tags
+- `createdAt` - Creation timestamp
 
 ## Development environment
 
-The `docker-compose.yml` file defines the development environment, which is composed by
+The `docker-compose.yml` file defines the development environment, which is composed of
 the following services:
 
--   **os1**: OpenSearch node v2.14.0, also known as the _indexer_.
--   **osd**: OpenSearch Dashboards v2.14.0 (in development mode).
+- **os1**: OpenSearch node v2.14.0, also known as the _indexer_.
+- **osd**: OpenSearch Dashboards v2.14.0 (in development mode).
 
 The **osd** service exposes its internal port 5601 and maps it using the host's 5601 port.
 Be sure that this port is free to use.
 
 This container also has the following [volumes][docker-volumes]:
 
--   plugin's source code directory ([src/](./src/)), which is mounted to the
-    `/home/node/kbn/plugins/custom_plugin` directory within the container.
--   configuration files for OpenSearch Dashboards. **You do not need to edit this file**.
+- plugin's source code directory ([src/](./src/)), which is mounted to the
+  `/home/node/kbn/plugins/custom_plugin` directory within the container.
+- configuration files for OpenSearch Dashboards. **You do not need to edit this file**.
 
 ### The Docker Compose environment
 
@@ -109,21 +174,21 @@ docker compose down
 
 #### Summary
 
--   `docker` CLI
+- `docker` CLI
 
-    | Action          | Command              |
-    | --------------- | -------------------- |
-    | Start           | docker compose up -d |
-    | Stop            | docker compose stop  |
-    | Stop and remove | docker compose down  |
+  | Action          | Command              |
+  | --------------- | -------------------- |
+  | Start           | docker compose up -d |
+  | Stop            | docker compose stop  |
+  | Stop and remove | docker compose down  |
 
--   `docker-compose` standalone
+- `docker-compose` standalone
 
-    | Action          | Command              |
-    | --------------- | -------------------- |
-    | Start           | docker-compose up -d |
-    | Stop            | docker-compose stop  |
-    | Stop and remove | docker-compose down  |
+  | Action          | Command              |
+  | --------------- | -------------------- |
+  | Start           | docker-compose up -d |
+  | Stop            | docker-compose stop  |
+  | Stop and remove | docker-compose down  |
 
 ### The OpenSearch Dashboards server
 
@@ -195,7 +260,7 @@ Credentials to login in the UI are:
 
 ```js
 username: admin;
-password: Wazuh-1234;
+password: Wazuh - 1234;
 ```
 
 If you see the following message, then the most likely cause is that the code optimization
@@ -209,24 +274,114 @@ process has not finished yet. Wait a few minutes a try again.
 
 1. Open the menu:
 
-    ![open_plugin_menu](./docs/default/open_plugin_menu.png)
+   ![open_plugin_menu](./docs/default/open_plugin_menu.png)
 
 1. Click on the custom plugin:
 
-    ![access_to_custom_plugin](./docs/default/access_to_custom_plugin.png)
+   ![access_to_custom_plugin](./docs/default/access_to_custom_plugin.png)
 
 1. Custom plugin overview:
 
-    ![custom_plugin_overview](./docs/default/custom_plugin_overview.png)
+   ![custom_plugin_overview](./docs/default/custom_plugin_overview.png)
+
+## API Endpoints
+
+The following API endpoints are available:
+
+- `GET /api/custom_plugin/todos` - Get all tasks
+- `GET /api/custom_plugin/todos/{id}` - Get a task by ID
+- `POST /api/custom_plugin/todos` - Create a new task
+- `PUT /api/custom_plugin/todos/{id}` - Update a task
+- `DELETE /api/custom_plugin/todos/{id}` - Delete a task
+- `GET /api/custom_plugin/todos/search?q={query}` - Search tasks
 
 ## Developer notes
 
 As the server is running in development mode, the hot-reload features are enabled:
 
--   on server side changes, the server will be restarted.
--   on front-end side changes, the modified code will be optimized again and the static
-    files updated. When this happens, you'll these logs in the console:
-    > np bld log [10:47:08.306] [success][@osd/optimizer] 1 bundles compiled successfully after 0.1 sec, watching for changes
+- on server side changes, the server will be restarted.
+- on front-end side changes, the modified code will be optimized again and the static
+  files updated. When this happens, you'll these logs in the console:
+  > np bld log [10:47:08.306] [success][@osd/optimizer] 1 bundles compiled successfully after 0.1 sec, watching for changes
+
+### Running Tests
+
+The application includes unit tests for both frontend components and backend services. There are several ways to run the tests:
+
+#### Within the Docker Container
+
+Tests can be run within the Docker container:
+
+```bash
+# Linux/macOS
+docker exec -it dev_environment-osd-1 yarn test
+
+# Windows
+docker exec -it dev_environment-osd-1 /bin/bash -c "cd /home/node/kbn/plugins/custom_plugin && yarn test"
+```
+
+For running specific tests:
+
+```bash
+# Windows - Run tests for a specific component
+docker exec -it dev_environment-osd-1 /bin/bash -c "cd /home/node/kbn/plugins/custom_plugin && yarn test --testPathPattern=TodoForm"
+
+# Windows - Run tests with coverage
+docker exec -it dev_environment-osd-1 /bin/bash -c "cd /home/node/kbn/plugins/custom_plugin && yarn test --coverage"
+```
+
+#### From the Project Directory
+
+If you prefer to run tests directly from your local machine:
+
+1. Navigate to the project directory:
+
+   ```bash
+   cd src
+   ```
+
+2. Run all tests:
+
+   ```bash
+   yarn test
+   ```
+
+3. Run tests in watch mode (automatically reruns tests when files change):
+
+   ```bash
+   yarn test --watch
+   ```
+
+4. Run specific test files or patterns:
+
+   ```bash
+   yarn test --testPathPattern=TodoForm  # Runs tests for TodoForm
+   yarn test --testPathPattern=KanbanView  # Runs tests for KanbanView
+   yarn test --testPathPattern=services  # Runs all service tests
+   ```
+
+5. Generate test coverage report:
+   ```bash
+   yarn test --coverage
+   ```
+
+#### Troubleshooting Tests
+
+If you encounter issues with the tests:
+
+1. Make sure all dependencies are installed:
+
+   ```bash
+   yarn add --dev @testing-library/react @testing-library/jest-dom @types/jest
+   ```
+
+2. Check for linter errors that might indicate missing type definitions:
+
+   ```bash
+   yarn lint
+   ```
+
+3. For tests involving React hooks, ensure that the components are properly mocked to avoid "Invalid hook call" errors. This is especially important when testing components that use hooks or EUI components that internally use hooks.
 
 ### Browser's cache
 
@@ -238,13 +393,13 @@ You can do this through a checkbox in the browser development tools.
 > ⚠️ This only works if the browser development tools are opened. So you need to keep them opened while you want
 > to see the changes done in the frontend.
 
--   Google Chrome
+- Google Chrome
 
-    ![disable_cache_google_chrome_dev_tools](./docs/default/disable_cache_google_chrome_dev_tools.png)
+  ![disable_cache_google_chrome_dev_tools](./docs/default/disable_cache_google_chrome_dev_tools.png)
 
--   Firefox
+- Firefox
 
-    ![disable_cache_firefox_dev_tools](./docs/default/disable_cache_firefox_dev_tools.png)
+  ![disable_cache_firefox_dev_tools](./docs/default/disable_cache_firefox_dev_tools.png)
 
 ### Plugin's dependencies
 
@@ -261,17 +416,17 @@ In case you need to install a new dependency for the plugin, follow these steps:
 1. Go to the plugin directory inside the container: `/home/node/kbn/plugins/custom_plugin`.
 1. Install the dependency using `yarn` (default) or `npm`. Both are available.
 
-    - Using `yarn`:
+   - Using `yarn`:
 
-    ```shell
-    yarn add <dependency_name>
-    ```
+   ```shell
+   yarn add <dependency_name>
+   ```
 
-    - Using `npm`:
+   - Using `npm`:
 
-    ```shell
-    npm install <dependency_name>
-    ```
+   ```shell
+   npm install <dependency_name>
+   ```
 
 ### OpenSearch indexer client examples
 
@@ -306,6 +461,7 @@ const responseItems = await context.core.opensearch.client.asCurrentUser.search(
 ```
 
 Keep in mind you may need to check if the index pattern exists before using it
+
 ```
 const existsIndex = await context.core.opensearch.client.asCurrentUser.indices.exists({
     index: INDEX_PATTERN
@@ -317,12 +473,46 @@ if (!existsIndex.body) {
     });
 }
 ```
+
 More info on [API Docs](https://www.elastic.co/guide/en/elasticsearch/client/javascript-api/current/api-reference.html)
+
+## Common Issues and Solutions
+
+### Invalid Hook Call Error
+
+When testing React components, you may encounter "Invalid hook call" errors. This typically happens when:
+
+1. Testing components that use React hooks
+2. Testing components that use EUI components (which internally use hooks)
+
+**Solution**: Mock the component and its dependencies in your test file, as demonstrated in the tests for ReportsView and KanbanView.
+
+### XSRF Token Missing
+
+API requests may fail with XSRF token errors if the token is not properly included in requests.
+
+**Solution**: Ensure all API calls include the XSRF token header, which can be retrieved from document.cookie. The todoApi service implements this pattern correctly.
+
+### Missing Type Definitions
+
+You may encounter TypeScript errors about missing type definitions for testing libraries.
+
+**Solution**: Install the required type definitions:
+
+```bash
+yarn add --dev @types/testing-library__react @types/jest
+```
+
+## License
+
+This project is licensed under the Apache License 2.0.
 
 ## References:
 
--   [Docker Desktop][docker-desktop]
--   [Developing inside a Container][dev-containers]
+- [Docker Desktop][docker-desktop]
+- [Developing inside a Container][dev-containers]
+- [OpenSearch Documentation](https://opensearch.org/docs/latest/)
+- [OpenSearch Dashboards Plugin Development](https://opensearch.org/docs/latest/dashboards/index/)
 
 <!-- Links -->
 
