@@ -9,18 +9,18 @@ import {
 import TodoForm from "./TodoForm";
 import { Todo } from "./types";
 
-interface TodoModalProps {
+export interface TodoModalProps {
   isVisible: boolean;
   onClose: () => void;
-  onSubmit: (todo: Omit<Todo, "id" | "createdAt">) => void;
-  todo?: Todo;
+  onSave: (todo: Omit<Todo, "id" | "createdAt">) => void;
+  initialTodo?: Todo;
 }
 
 const TodoModal: React.FC<TodoModalProps> = ({
   isVisible,
   onClose,
-  onSubmit,
-  todo,
+  onSave,
+  initialTodo,
 }) => {
   if (!isVisible) {
     return null;
@@ -31,12 +31,12 @@ const TodoModal: React.FC<TodoModalProps> = ({
       <EuiModal onClose={onClose} maxWidth={1000} style={{ minWidth: "800px" }}>
         <EuiModalHeader>
           <EuiModalHeaderTitle>
-            {todo ? "Edit Task" : "Create New Task"}
+            {initialTodo ? "Edit Task" : "Create New Task"}
           </EuiModalHeaderTitle>
         </EuiModalHeader>
 
         <EuiModalBody>
-          <TodoForm todo={todo} onSubmit={onSubmit} onCancel={onClose} />
+          <TodoForm todo={initialTodo} onSubmit={onSave} onCancel={onClose} />
         </EuiModalBody>
       </EuiModal>
     </EuiOverlayMask>

@@ -1,9 +1,9 @@
-import * as todoApi from "../todoApi";
+import { todoApi } from "../todoApi";
 import { Todo } from "../../types";
 
-// Mock global fetch
-const mockFetch = jest.fn();
-global.fetch = mockFetch;
+// Establecer mockFetch como cualquier para evitar problemas de tipo
+const mockFetch = jest.fn() as any;
+(window as any).fetch = mockFetch;
 
 // Mock document.cookie para getXsrfToken
 document.cookie = "osd-xsrf=test-xsrf-token";

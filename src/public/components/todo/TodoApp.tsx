@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   EuiPage,
   EuiPageBody,
@@ -13,134 +13,86 @@ import {
   EuiFieldSearch,
   EuiToast,
   EuiLoadingSpinner,
+  EuiSelect,
+  EuiBadge,
 } from "@elastic/eui";
 import ListView from "./ListView";
 import KanbanView from "./KanbanView";
 import ReportsView from "./ReportsView";
 import TodoModal from "./TodoModal";
-import { Todo, ViewType } from "./types";
-import * as todoApi from "./services/todoApi";
+import { Todo, ViewType, TodoStatus, TodoPriority } from "./types";
+import { useTodos } from "./hooks/useTodos";
 
-// Mock data for initial development
+// Main TodoApp component
 const TodoApp: React.FC = () => {
-  const [todos, setTodos] = useState<Todo[]>([]);
+  const {
+    todos,
+    filteredTodos,
+    loading,
+    error,
+    searchTerm,
+    statusFilter,
+    priorityFilter,
+    tagFilter,
+    setSearchTerm,
+    setStatusFilter,
+    setPriorityFilter,
+    setTagFilter,
+    createTodo,
+    updateTodo,
+    deleteTodo,
+    updateTodoStatus,
+  } = useTodos();
+
   const [viewType, setViewType] = useState<ViewType>("list");
-  const [searchQuery, setSearchQuery] = useState("");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | undefined>();
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadTodos = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const fetchedTodos = await todoApi.getAllTodos();
-        setTodos(fetchedTodos);
-      } catch (err) {
-        console.error("Failed to load todos:", err);
-        setError("Failed to load todos. Please try again later.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadTodos();
-  }, []);
-
-  useEffect(() => {
-    const searchTodos = async () => {
-      if (!searchQuery.trim()) {
-        try {
-          const fetchedTodos = await todoApi.getAllTodos();
-          setTodos(fetchedTodos);
-        } catch (err) {
-          console.error("Failed to load todos:", err);
-          setError("Failed to load todos. Please try again later.");
-        }
-        return;
-      }
-
-      setIsLoading(true);
-      setError(null);
-      try {
-        const searchResults = await todoApi.searchTodos(searchQuery);
-        setTodos(searchResults);
-      } catch (err) {
-        console.error("Failed to search todos:", err);
-        setError("Failed to search todos. Please try again later.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    const timeoutId = setTimeout(searchTodos, 300);
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
-
-  const handleStatusChange = async (
-    todoId: string,
-    newStatus: Todo["status"]
-  ) => {
-    try {
-      const updatedTodo = await todoApi.updateTodo(todoId, {
-        status: newStatus,
-      });
-      setTodos((prevTodos) =>
-        prevTodos.map((todo) => (todo.id === todoId ? updatedTodo : todo))
-      );
-    } catch (err) {
-      console.error("Failed to update todo status:", err);
-      setError("Failed to update todo status. Please try again later.");
-    }
-  };
+  // Get unique tags from all todos for filter dropdown
+  const uniqueTags = React.useMemo(() => {
+    const tags = new Set<string>();
+    todos.forEach((todo) => {
+      todo.tags.forEach((tag) => tags.add(tag));
+    });
+    return Array.from(tags);
+  }, [todos]);
 
   const handleCreateTodo = async (todoData: Omit<Todo, "id" | "createdAt">) => {
     try {
-      const newTodo = await todoApi.createTodo(todoData);
-      setTodos((prevTodos) => [...prevTodos, newTodo]);
+      await createTodo(todoData);
       setToastMessage("Task created successfully!");
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
       setIsModalVisible(false);
     } catch (err) {
       console.error("Failed to create todo:", err);
-      setError("Failed to create todo. Please try again later.");
     }
   };
 
   const handleEditTodo = async (todoData: Omit<Todo, "id" | "createdAt">) => {
     if (editingTodo) {
       try {
-        const updatedTodo = await todoApi.updateTodo(editingTodo.id, todoData);
-        setTodos((prevTodos) =>
-          prevTodos.map((todo) =>
-            todo.id === editingTodo.id ? updatedTodo : todo
-          )
-        );
+        await updateTodo(editingTodo.id, todoData);
         setToastMessage("Task updated successfully!");
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
         setIsModalVisible(false);
       } catch (err) {
         console.error("Failed to update todo:", err);
-        setError("Failed to update todo. Please try again later.");
       }
     }
   };
 
   const handleDeleteTodo = async (todoId: string) => {
     try {
-      await todoApi.deleteTodo(todoId);
-      setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== todoId));
+      await deleteTodo(todoId);
       setToastMessage("Task deleted successfully!");
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } catch (err) {
       console.error("Failed to delete todo:", err);
-      setError("Failed to delete todo. Please try again later.");
     }
   };
 
@@ -160,15 +112,38 @@ const TodoApp: React.FC = () => {
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
+    setSearchTerm(e.target.value);
   };
 
   const clearSearch = () => {
-    setSearchQuery("");
+    setSearchTerm("");
+  };
+
+  const handleStatusFilterChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    setStatusFilter(e.target.value as TodoStatus | "all");
+  };
+
+  const handlePriorityFilterChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    setPriorityFilter(e.target.value as TodoPriority | "all");
+  };
+
+  const handleTagFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setTagFilter(e.target.value);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("all");
+    setPriorityFilter("all");
+    setTagFilter("all");
   };
 
   const renderView = () => {
-    if (isLoading) {
+    if (loading) {
       return (
         <EuiFlexGroup justifyContent="center">
           <EuiFlexItem grow={false}>
@@ -181,7 +156,7 @@ const TodoApp: React.FC = () => {
     if (error) {
       return (
         <EuiText color="danger">
-          <p>{error}</p>
+          <p>{error.message}</p>
         </EuiText>
       );
     }
@@ -190,8 +165,8 @@ const TodoApp: React.FC = () => {
       case "list":
         return (
           <ListView
-            todos={todos}
-            onStatusChange={handleStatusChange}
+            todos={filteredTodos}
+            onStatusChange={updateTodoStatus}
             onEdit={openEditModal}
             onDelete={handleDeleteTodo}
           />
@@ -199,8 +174,8 @@ const TodoApp: React.FC = () => {
       case "kanban":
         return (
           <KanbanView
-            todos={todos}
-            onStatusChange={handleStatusChange}
+            todos={filteredTodos}
+            onStatusChange={updateTodoStatus}
             onEdit={openEditModal}
             onDelete={handleDeleteTodo}
           />
@@ -252,7 +227,7 @@ const TodoApp: React.FC = () => {
                       color={viewType === "kanban" ? "primary" : "text"}
                       onClick={() => setViewType("kanban")}
                     >
-                      Kanban View
+                      Kanban Board
                     </EuiButtonEmpty>
                   </EuiFlexItem>
                   <EuiFlexItem grow={false}>
@@ -265,41 +240,133 @@ const TodoApp: React.FC = () => {
                   </EuiFlexItem>
                 </EuiFlexGroup>
               </EuiFlexItem>
-              <EuiFlexItem grow={false}>
-                {viewType !== "reports" && (
-                  <EuiFieldSearch
-                    placeholder="Search tasks..."
-                    value={searchQuery}
-                    onChange={handleSearchChange}
-                    isClearable
-                    onClear={clearSearch}
-                  />
-                )}
+              <EuiFlexItem>
+                <EuiFieldSearch
+                  placeholder="Search tasks..."
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  isClearable={true}
+                  onClear={clearSearch}
+                  fullWidth
+                />
               </EuiFlexItem>
             </EuiFlexGroup>
 
             <EuiSpacer size="m" />
 
-            {renderView()}
+            {/* Filters */}
+            <EuiFlexGroup>
+              <EuiFlexItem>
+                <EuiSelect
+                  prepend="Status"
+                  options={[
+                    { value: "all", text: "All Statuses" },
+                    { value: "planned", text: "Planned" },
+                    { value: "in_progress", text: "In Progress" },
+                    { value: "completed", text: "Completed" },
+                    { value: "error", text: "Error" },
+                  ]}
+                  value={statusFilter}
+                  onChange={handleStatusFilterChange}
+                  aria-label="Status filter"
+                />
+              </EuiFlexItem>
+              <EuiFlexItem>
+                <EuiSelect
+                  prepend="Priority"
+                  options={[
+                    { value: "all", text: "All Priorities" },
+                    { value: "low", text: "Low" },
+                    { value: "medium", text: "Medium" },
+                    { value: "high", text: "High" },
+                  ]}
+                  value={priorityFilter}
+                  onChange={handlePriorityFilterChange}
+                  aria-label="Priority filter"
+                />
+              </EuiFlexItem>
+              <EuiFlexItem>
+                <EuiSelect
+                  prepend="Tag"
+                  options={[
+                    { value: "all", text: "All Tags" },
+                    ...uniqueTags.map((tag) => ({ value: tag, text: tag })),
+                  ]}
+                  value={tagFilter}
+                  onChange={handleTagFilterChange}
+                  aria-label="Tag filter"
+                />
+              </EuiFlexItem>
+              <EuiFlexItem grow={false}>
+                <EuiButtonEmpty onClick={clearFilters}>
+                  Clear Filters
+                </EuiButtonEmpty>
+              </EuiFlexItem>
+            </EuiFlexGroup>
 
-            {isModalVisible && (
-              <TodoModal
-                isVisible={isModalVisible}
-                onClose={closeModal}
-                onSubmit={editingTodo ? handleEditTodo : handleCreateTodo}
-                todo={editingTodo}
-              />
+            <EuiSpacer size="m" />
+
+            {/* Active filters indicator */}
+            {(statusFilter !== "all" ||
+              priorityFilter !== "all" ||
+              tagFilter !== "all") && (
+              <>
+                <EuiFlexGroup gutterSize="s" wrap>
+                  {statusFilter !== "all" && (
+                    <EuiFlexItem grow={false}>
+                      <EuiBadge
+                        color="primary"
+                        onClick={() => setStatusFilter("all")}
+                      >
+                        Status: {statusFilter} ✕
+                      </EuiBadge>
+                    </EuiFlexItem>
+                  )}
+                  {priorityFilter !== "all" && (
+                    <EuiFlexItem grow={false}>
+                      <EuiBadge
+                        color="primary"
+                        onClick={() => setPriorityFilter("all")}
+                      >
+                        Priority: {priorityFilter} ✕
+                      </EuiBadge>
+                    </EuiFlexItem>
+                  )}
+                  {tagFilter !== "all" && (
+                    <EuiFlexItem grow={false}>
+                      <EuiBadge
+                        color="primary"
+                        onClick={() => setTagFilter("all")}
+                      >
+                        Tag: {tagFilter} ✕
+                      </EuiBadge>
+                    </EuiFlexItem>
+                  )}
+                </EuiFlexGroup>
+                <EuiSpacer size="s" />
+              </>
             )}
+
+            {renderView()}
 
             {showToast && (
               <EuiToast
-                title="Success"
+                title="Notification"
                 color="success"
                 iconType="check"
                 onClose={() => setShowToast(false)}
               >
                 <p>{toastMessage}</p>
               </EuiToast>
+            )}
+
+            {isModalVisible && (
+              <TodoModal
+                isVisible={isModalVisible}
+                onClose={closeModal}
+                onSave={editingTodo ? handleEditTodo : handleCreateTodo}
+                initialTodo={editingTodo}
+              />
             )}
           </EuiPageContentBody>
         </EuiPageContent>
