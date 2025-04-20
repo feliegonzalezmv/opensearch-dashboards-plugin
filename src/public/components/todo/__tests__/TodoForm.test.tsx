@@ -3,23 +3,23 @@ import { render, fireEvent, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/extend-expect";
 import { Todo } from "../types";
 
-// Mock completo del componente TodoForm para evitar problemas con hooks
+// Complete mock of TodoForm component to avoid issues with hooks
 jest.mock("../TodoForm", () => {
   return {
     __esModule: true,
     default: ({ todo, onSubmit, onCancel }) => {
-      // Crear estados iniciales basados en los props
+      // Initialize state based on props
       const initialTitle = todo?.title || "";
       const initialDescription = todo?.description || "";
       const initialStatus = todo?.status || "planned";
       const initialPriority = todo?.priority || "medium";
       const initialTags = todo?.tags || [];
 
-      // Función para manejar el submit sin acceder a document
+      // Function to handle submit without accessing document
       const handleSubmit = (e) => {
         e.preventDefault();
-        // En lugar de obtener los valores del DOM, simplemente simulamos que
-        // los valores actuales son los iniciales más cualquier cambio que pueda haberse hecho
+        // Instead of getting values from DOM, we simply use the initial values
+        // plus any changes that might have been made
         onSubmit({
           title: initialTitle,
           description: initialDescription,
@@ -29,7 +29,7 @@ jest.mock("../TodoForm", () => {
         });
       };
 
-      // Mock del formulario
+      // Mock form
       return (
         <div data-testid="todo-form">
           <form data-testid="form" onSubmit={handleSubmit}>
@@ -105,7 +105,7 @@ jest.mock("../TodoForm", () => {
   };
 });
 
-// Importar el componente mockeado
+// Import the mocked component
 import TodoForm from "../TodoForm";
 
 describe("TodoForm", () => {
@@ -120,14 +120,14 @@ describe("TodoForm", () => {
   test("renders correctly with empty form", () => {
     render(<TodoForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
-    // Verificar que los elementos están presentes en el DOM
+    // Verify that elements are present in the DOM
     expect(screen.getByLabelText("Title")).toBeInTheDocument();
     expect(screen.getByLabelText("Description")).toBeInTheDocument();
     expect(screen.getByLabelText("Status")).toBeInTheDocument();
     expect(screen.getByLabelText("Priority")).toBeInTheDocument();
     expect(screen.getByLabelText("Tags")).toBeInTheDocument();
 
-    // Verificar valores predeterminados
+    // Verify default values
     expect(screen.getByTestId("title-input")).toHaveValue("");
     expect(screen.getByTestId("description-input")).toHaveValue("");
     expect(screen.getByTestId("status-select")).toHaveValue("planned");
@@ -150,7 +150,7 @@ describe("TodoForm", () => {
       <TodoForm todo={todo} onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
     );
 
-    // Verificar que los valores existentes se muestran correctamente
+    // Verify that existing values are displayed correctly
     expect(screen.getByTestId("title-input")).toHaveValue("Test Todo");
     expect(screen.getByTestId("description-input")).toHaveValue(
       "Test Description"
@@ -163,8 +163,8 @@ describe("TodoForm", () => {
   test("calls onSubmit with correct data when form is submitted", () => {
     render(<TodoForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
-    // Llenar el formulario - Nota: en este mock simplificado, estos cambios no actualizan los valores
-    // pero aún podemos probar que el formulario se envía
+    // Fill out the form - Note: in this simplified mock, these changes don't update the values
+    // but we can still test that the form is submitted
     fireEvent.change(screen.getByTestId("title-input"), {
       target: { value: "New Todo" },
     });
@@ -178,12 +178,12 @@ describe("TodoForm", () => {
       target: { value: "high" },
     });
 
-    // Enviar el formulario
+    // Submit the form
     fireEvent.submit(screen.getByTestId("form"));
 
-    // Verificar que onSubmit fue llamado
+    // Verify that onSubmit was called
     expect(mockOnSubmit).toHaveBeenCalledTimes(1);
-    // En esta implementación simplificada, los valores enviados serán los iniciales
+    // In this simplified implementation, the values submitted will be the initial ones
     expect(mockOnSubmit).toHaveBeenCalledWith({
       title: "",
       description: "",
@@ -196,20 +196,20 @@ describe("TodoForm", () => {
   test("calls onCancel when cancel button is clicked", () => {
     render(<TodoForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
-    // Encontrar y hacer clic en el botón Cancelar
+    // Find and click the Cancel button
     fireEvent.click(screen.getByTestId("cancel-button"));
 
-    // Verificar que onCancel fue llamado
+    // Verify that onCancel was called
     expect(mockOnCancel).toHaveBeenCalled();
   });
 
   test("submit button is disabled when form is invalid", () => {
     render(<TodoForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
-    // El formulario debería ser inválido inicialmente porque está vacío
+    // Form should be invalid initially because it's empty
     expect(screen.getByTestId("submit-button")).toBeDisabled();
 
-    // Nota: En nuestro mock simplificado, no podemos probar cambios dinámicos
-    // en el estado del botón, pero podemos verificar su estado inicial
+    // Note: In our simplified mock, we can't test dynamic changes
+    // to the button state, but we can verify its initial state
   });
 });

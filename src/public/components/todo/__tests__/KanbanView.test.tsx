@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/extend-expect";
 import { Todo } from "../types";
 
-// Mock de componentes que pueden causar problemas con hooks
+// Mock for EUI components that can cause issues with hooks
 jest.mock("@elastic/eui", () => ({
   EuiDragDropContext: ({ children, onDragEnd }: any) => (
     <div
@@ -37,7 +37,7 @@ jest.mock("@elastic/eui", () => ({
   EuiBadge: ({ children }: any) => <span data-testid="badge">{children}</span>,
 }));
 
-// Mock del componente KanbanView
+// Mock of the KanbanView component
 jest.mock("../KanbanView", () => {
   return {
     __esModule: true,
@@ -127,7 +127,7 @@ jest.mock("../KanbanView", () => {
   };
 });
 
-// Importar el componente mockeado
+// Import the mocked component
 import KanbanView from "../KanbanView";
 
 describe("KanbanView", () => {
