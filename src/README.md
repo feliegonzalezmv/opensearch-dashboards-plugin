@@ -72,11 +72,68 @@ Tasks have the following properties:
 
 ### Running Tests
 
+The application includes unit tests for both frontend components and backend services. There are several ways to run the tests:
+
+#### Within the Docker Container
+
 Tests can be run within the Docker container:
 
-```
+```bash
 docker exec -it dev_environment-osd-1 yarn test
 ```
+
+#### From the Project Directory
+
+If you prefer to run tests directly from your local machine:
+
+1. Navigate to the project directory:
+
+   ```bash
+   cd src
+   ```
+
+2. Run all tests:
+
+   ```bash
+   npm test
+   ```
+
+3. Run tests in watch mode (automatically reruns tests when files change):
+
+   ```bash
+   npm test -- --watch
+   ```
+
+4. Run specific test files or patterns:
+
+   ```bash
+   npm test -- --testPathPattern=TodoForm  # Runs tests for TodoForm
+   npm test -- --testPathPattern=KanbanView  # Runs tests for KanbanView
+   npm test -- --testPathPattern=services  # Runs all service tests
+   ```
+
+5. Generate test coverage report:
+   ```bash
+   npm test -- --coverage
+   ```
+
+#### Troubleshooting Tests
+
+If you encounter issues with the tests:
+
+1. Make sure all dependencies are installed:
+
+   ```bash
+   npm install --save-dev @testing-library/react @testing-library/jest-dom @types/jest
+   ```
+
+2. Check for linter errors that might indicate missing type definitions:
+
+   ```bash
+   npm run lint
+   ```
+
+3. For tests involving React hooks, ensure that the components are properly mocked to avoid "Invalid hook call" errors.
 
 ## License
 
