@@ -1,4 +1,4 @@
-export type ViewType = "list" | "kanban";
+export type ViewType = "list" | "kanban" | "reports";
 
 export interface Todo {
   id: string;

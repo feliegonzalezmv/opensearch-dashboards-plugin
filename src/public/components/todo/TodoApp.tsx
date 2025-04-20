@@ -16,67 +16,15 @@ import {
 } from "@elastic/eui";
 import ListView from "./ListView";
 import KanbanView from "./KanbanView";
+import ReportsView from "./ReportsView";
 import TodoModal from "./TodoModal";
-import { Todo } from "./types";
+import { Todo, ViewType } from "./types";
 import * as todoApi from "./services/todoApi";
 
 // Mock data for initial development
-const initialTodos: Todo[] = [
-  {
-    id: "1",
-    title: "PCI DSS Compliance Review",
-    description:
-      "Conduct quarterly review of PCI DSS compliance requirements and document findings.",
-    status: "planned",
-    priority: "high",
-    tags: ["pci-dss", "compliance", "security"],
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "2",
-    title: "Security Patch Implementation",
-    description:
-      "Apply latest security patches to all systems and verify successful installation.",
-    status: "in_progress",
-    priority: "high",
-    tags: ["security", "maintenance", "critical"],
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "3",
-    title: "ISO 27001 Documentation Update",
-    description:
-      "Update information security policies and procedures according to ISO 27001 standards.",
-    status: "completed",
-    priority: "medium",
-    tags: ["iso-27001", "documentation", "compliance"],
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "4",
-    title: "Vulnerability Assessment",
-    description:
-      "Perform quarterly vulnerability assessment on all systems and address critical findings.",
-    status: "planned",
-    priority: "high",
-    tags: ["security", "vulnerability", "assessment"],
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "5",
-    title: "Security Awareness Training",
-    description:
-      "Conduct annual security awareness training for all employees and document completion.",
-    status: "planned",
-    priority: "medium",
-    tags: ["training", "awareness", "security"],
-    createdAt: new Date().toISOString(),
-  },
-];
-
 const TodoApp: React.FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [viewType, setViewType] = useState<"list" | "kanban">("list");
+  const [viewType, setViewType] = useState<ViewType>("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | undefined>();
@@ -95,8 +43,6 @@ const TodoApp: React.FC = () => {
       } catch (err) {
         console.error("Failed to load todos:", err);
         setError("Failed to load todos. Please try again later.");
-
-        setTodos(initialTodos);
       } finally {
         setIsLoading(false);
       }
@@ -221,6 +167,51 @@ const TodoApp: React.FC = () => {
     setSearchQuery("");
   };
 
+  const renderView = () => {
+    if (isLoading) {
+      return (
+        <EuiFlexGroup justifyContent="center">
+          <EuiFlexItem grow={false}>
+            <EuiLoadingSpinner size="xl" />
+          </EuiFlexItem>
+        </EuiFlexGroup>
+      );
+    }
+
+    if (error) {
+      return (
+        <EuiText color="danger">
+          <p>{error}</p>
+        </EuiText>
+      );
+    }
+
+    switch (viewType) {
+      case "list":
+        return (
+          <ListView
+            todos={todos}
+            onStatusChange={handleStatusChange}
+            onEdit={openEditModal}
+            onDelete={handleDeleteTodo}
+          />
+        );
+      case "kanban":
+        return (
+          <KanbanView
+            todos={todos}
+            onStatusChange={handleStatusChange}
+            onEdit={openEditModal}
+            onDelete={handleDeleteTodo}
+          />
+        );
+      case "reports":
+        return <ReportsView todos={todos} />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <EuiPage>
       <EuiPageBody>
@@ -264,50 +255,32 @@ const TodoApp: React.FC = () => {
                       Kanban View
                     </EuiButtonEmpty>
                   </EuiFlexItem>
+                  <EuiFlexItem grow={false}>
+                    <EuiButtonEmpty
+                      color={viewType === "reports" ? "primary" : "text"}
+                      onClick={() => setViewType("reports")}
+                    >
+                      Reports
+                    </EuiButtonEmpty>
+                  </EuiFlexItem>
                 </EuiFlexGroup>
               </EuiFlexItem>
               <EuiFlexItem grow={false}>
-                <EuiFieldSearch
-                  placeholder="Search tasks..."
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  isClearable
-                  onClear={clearSearch}
-                />
+                {viewType !== "reports" && (
+                  <EuiFieldSearch
+                    placeholder="Search tasks..."
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    isClearable
+                    onClear={clearSearch}
+                  />
+                )}
               </EuiFlexItem>
             </EuiFlexGroup>
 
             <EuiSpacer size="m" />
 
-            {isLoading ? (
-              <EuiFlexGroup justifyContent="center">
-                <EuiFlexItem grow={false}>
-                  <EuiLoadingSpinner size="xl" />
-                </EuiFlexItem>
-              </EuiFlexGroup>
-            ) : error ? (
-              <EuiText color="danger">
-                <p>{error}</p>
-              </EuiText>
-            ) : (
-              <>
-                {viewType === "list" ? (
-                  <ListView
-                    todos={todos}
-                    onStatusChange={handleStatusChange}
-                    onEdit={openEditModal}
-                    onDelete={handleDeleteTodo}
-                  />
-                ) : (
-                  <KanbanView
-                    todos={todos}
-                    onStatusChange={handleStatusChange}
-                    onEdit={openEditModal}
-                    onDelete={handleDeleteTodo}
-                  />
-                )}
-              </>
-            )}
+            {renderView()}
 
             {isModalVisible && (
               <TodoModal
